@@ -49,4 +49,35 @@ edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
-f
+#Training and Test Sets
+test_index2 <- createDataPartition(y = edx$rating, times = 1, p = 0.1, list = FALSE)
+Training <- edx[-test_index2,]
+Temp2 <- edx[test_index2,]
+Testing <- Temp2 %>% 
+  semi_join(Training, by = "movieId") %>%
+  semi_join(Training, by = "userId")
+removed2 <- anti_join(Temp2, Testing)
+Training <- rbind(Training, removed2)
+
+#Playing around starts here
+#Accounting for movie effects...
+y <- select(Training, movieId, userId, rating) |>
+  pivot_wider(names_from = movieId, values_from = rating) 
+rnames <- y$userId
+y <- as.matrix(y[,-1])
+rownames(y) <- rnames
+mu <- mean(y, na.rm = TRUE)
+b_i <- colMeans(y - mu, na.rm = TRUE)
+fit_movies <- data.frame(movieId = as.integer(colnames(y)), 
+                         mu = mu, b_i = b_i)
+left_join(Testing, fit_movies, by = "movieId") |> 
+  mutate(pred = mu + b_i) |> 
+  summarize(rmse = RMSE(rating, pred))
+rmse
+0.9437122
+
+# y is huge. let's make it smaller?
+set.seed(1, sample.kind="Rounding")
+SmallIndex <- createDataPartition(y = edx$rating, times = 1, p = 0.1, list = FALSE)
+Smaller <- edx[SmallIndex,]
+#this didn't work for some reason
